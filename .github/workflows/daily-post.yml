@@ -1,0 +1,122 @@
+name: Daily Instagram quote post
+
+on:
+  schedule:
+    - cron: "30 3 * * *"  # 03:30 UTC daily
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Generate and verify the image is publicly fetchable, but do not post to Instagram"
+        type: boolean
+        default: false
+
+concurrency:
+  group: daily-instagram-post
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      date: ${{ steps.meta.outputs.date }}
+      sha: ${{ steps.commit.outputs.sha }}
+      image_url: ${{ steps.commit.outputs.image_url }}
+      dry_run: ${{ steps.meta.outputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - run: pip install -r requirements.txt
+
+      - name: Resolve run metadata
+        id: meta
+        run: |
+          echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+          echo "dry_run=${{ inputs.dry_run || 'false' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Instagram credentials
+        if: steps.meta.outputs.dry_run != 'true'
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: python src/publish.py --validate
+        working-directory: .
+
+      - name: Generate today's card
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        run: python src/generate.py --date "${{ steps.meta.outputs.date }}"
+
+      - name: Commit generated card + state
+        id: commit
+        run: |
+          git config user.name "instagram-daily-quote-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add out/ state/
+          if git diff --cached --quiet; then
+            echo "No changes to commit (card for this date already exists)."
+          else
+            git commit -m "Daily card: ${{ steps.meta.outputs.date }}"
+            git push
+          fi
+          sha=$(git rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "image_url=https://raw.githubusercontent.com/${{ github.repository }}/$sha/out/${{ steps.meta.outputs.date }}.jpg" >> "$GITHUB_OUTPUT"
+
+      - name: Job summary
+        run: |
+          {
+            echo "### Today's card — ${{ steps.meta.outputs.date }}"
+            echo ""
+            echo "![card](${{ steps.commit.outputs.image_url }})"
+            echo ""
+            echo "**Caption:**"
+            echo '```'
+            cat "out/${{ steps.meta.outputs.date }}.json" | python3 -c "import json,sys; print(json.load(sys.stdin)['caption'])"
+            echo '```'
+            echo ""
+            echo "Photo credit: $(python3 -c "import json; print(json.load(open('out/${{ steps.meta.outputs.date }}.json'))['photo']['photographer'])")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: generate
+    runs-on: ubuntu-latest
+    environment: instagram-live
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - run: pip install -r requirements.txt
+
+      - name: Verify image is publicly fetchable
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" "${{ needs.generate.outputs.image_url }}")
+          content_type=$(curl -sI "${{ needs.generate.outputs.image_url }}" | grep -i '^content-type' || true)
+          echo "HTTP $status — $content_type"
+          if [ "$status" != "200" ]; then
+            echo "::error::Image URL is not publicly fetchable yet (raw.githubusercontent.com can lag a commit by a few seconds) — re-run this job."
+            exit 1
+          fi
+
+      - name: Publish to Instagram
+        if: needs.generate.outputs.dry_run != 'true'
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: |
+          python src/publish.py \
+            --image-url "${{ needs.generate.outputs.image_url }}" \
+            --caption-file "out/${{ needs.generate.outputs.date }}.json"
+
+      - name: Dry run — skip publish
+        if: needs.generate.outputs.dry_run == 'true'
+        run: echo "dry_run=true — image verified fetchable, Instagram publish skipped."
