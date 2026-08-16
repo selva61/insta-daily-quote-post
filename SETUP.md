@@ -76,16 +76,12 @@ copy the API key from your dashboard. This is `PEXELS_API_KEY`.
 
 ---
 
-## 6. Push the repo to GitHub and configure it
+## 6. Configure the repo
 
-```bash
-cd ~/Development/instagram-daily-quote
-gh repo create instagram-daily-quote --public --source=. --remote=origin
-git push -u origin main
-```
-
-(If you don't have `gh` set up, create the repo manually on github.com — **must be
-public** — then `git remote add origin <url> && git push -u origin main`.)
+Already done: the repo is pushed to
+[github.com/selva61/insta-daily-quote-post](https://github.com/selva61/insta-daily-quote-post)
+(public) and the `instagram-live` approval environment exists with you as required
+reviewer. What's left is adding secrets.
 
 **Repo secrets** (Settings → Secrets and variables → Actions → New repository secret):
 
@@ -96,12 +92,8 @@ public** — then `git remote add origin <url> && git push -u origin main`.)
 | `PEXELS_API_KEY` | from step 5 |
 | `GH_PAT_SECRETS` | a fine-grained PAT, scoped to just this repo, with **Secrets: Read and write** permission — create at github.com/settings/tokens?type=beta. Used only by `refresh-token.yml` to rotate `IG_ACCESS_TOKEN` automatically. |
 
-**Approval environment** (Settings → Environments → New environment):
-
-1. Name it exactly `instagram-live` (the workflow references this name).
-2. Under **Deployment protection rules**, enable **Required reviewers** and add
-   yourself.
-3. Save.
+**Approval environment**: already created — `instagram-live` exists on this repo with
+you set as the required reviewer.
 
 This is the gate: every day, the `generate` job builds the card and posts a preview to
 the workflow run's job summary; the `publish` job then waits for your approval in that
