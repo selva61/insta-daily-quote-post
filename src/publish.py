@@ -77,17 +77,21 @@ def wait_until_ready(container_id: str):
     for attempt in range(1, POLL_ATTEMPTS + 1):
         resp = requests.get(
             f"{BASE}/{container_id}",
-            params={"fields": "status_code", "access_token": config.IG_ACCESS_TOKEN},
+            params={
+                "fields": "status_code,status,copyright_check_information",
+                "access_token": config.IG_ACCESS_TOKEN,
+            },
             timeout=20,
         )
         if resp.status_code != 200:
             sys.exit(f"Status poll failed ({resp.status_code}): {resp.text}")
-        status = resp.json().get("status_code")
-        print(f"  poll {attempt}/{POLL_ATTEMPTS}: status_code={status}")
+        body = resp.json()
+        status = body.get("status_code")
+        print(f"  poll {attempt}/{POLL_ATTEMPTS}: status_code={status} full={json.dumps(body)}")
         if status == "FINISHED":
             return
         if status == "ERROR":
-            sys.exit(f"Container {container_id} failed processing: {resp.text}")
+            sys.exit(f"Container {container_id} failed processing: {json.dumps(body)}")
         time.sleep(POLL_DELAY_SECONDS)
     sys.exit(f"Container {container_id} never reached FINISHED after {POLL_ATTEMPTS} polls")
 
