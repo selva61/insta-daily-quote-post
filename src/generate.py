@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Orchestrator: pick an unused quote + unused themed photo, render the
-card, and write it (plus a caption/metadata sidecar) into out/.
+"""Orchestrator: pick an unused quote + unused themed photo + unused music
+track, render the still card, composite it into a Reel, and write it
+(plus a caption/metadata sidecar and a thumbnail) into out/.
 
 Usage:
     python src/generate.py                      # real run, dated filename, marks quote+photo used
@@ -11,11 +12,15 @@ import argparse
 import json
 import random
 import sys
+import tempfile
 from datetime import date, datetime, timezone
+from pathlib import Path
 
+import audio
 import config
 import pexels
 import render
+import video
 
 
 def _load_quotes():
@@ -55,7 +60,7 @@ def pick_quote(mark_used: bool):
     return quote
 
 
-def build_caption(quote: dict, theme: str) -> str:
+def build_caption(quote: dict, theme: str, track: dict) -> str:
     tags = list(config.HASHTAG_POOLS["general"])
     if "car" in theme or "highway" in theme or "road" in theme:
         tags += config.HASHTAG_POOLS["automotive"]
@@ -66,23 +71,36 @@ def build_caption(quote: dict, theme: str) -> str:
     random.shuffle(tags)
     tags = tags[:11]
 
-    return f'"{quote["text"]}"\n— {quote["author"]}\n\n' + " ".join(tags)
+    return (
+        f'"{quote["text"]}"\n— {quote["author"]}\n\n'
+        + " ".join(tags)
+        + f"\n\n🎵 {track['credit']}"
+    )
 
 
 def generate_one(out_name: str, mark_used: bool):
     quote = pick_quote(mark_used=mark_used)
     photo, photo_meta = pexels.fetch_themed_photo()
+    track = audio.pick_track(mark_used=mark_used)
 
     card = render.render_card(photo, quote["text"], quote["author"])
 
     config.OUT_DIR.mkdir(parents=True, exist_ok=True)
-    image_path = config.OUT_DIR / f"{out_name}.jpg"
-    render.save_jpeg(card, image_path)
+    video_path = config.OUT_DIR / f"{out_name}.mp4"
+    thumb_path = config.OUT_DIR / f"{out_name}_thumb.jpg"
 
-    caption = build_caption(quote, photo_meta["theme"])
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        still_path = Path(tmp_dir) / "still.png"
+        card.save(still_path, "PNG")
+        video.build_reel(still_path, track["path"], video_path)
+
+    video.extract_thumbnail(video_path, thumb_path)
+
+    caption = build_caption(quote, photo_meta["theme"], track)
     meta = {
         "quote": quote,
         "photo": photo_meta,
+        "track": {"title": track["title"], "credit": track["credit"]},
         "caption": caption,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -90,12 +108,14 @@ def generate_one(out_name: str, mark_used: bool):
     with open(meta_path, "w") as f:
         json.dump(meta, f, indent=2, ensure_ascii=False)
 
-    print(f"Wrote {image_path}")
+    print(f"Wrote {video_path}")
+    print(f"Wrote {thumb_path}")
     print(f"Wrote {meta_path}")
     print(f"Photo credit: {photo_meta['photographer']} ({photo_meta['pexels_url']})")
+    print(f"Track: {track['title']}")
     print("--- caption ---")
     print(caption)
-    return image_path, meta_path
+    return video_path, meta_path
 
 
 def main():

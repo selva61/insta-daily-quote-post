@@ -1,5 +1,6 @@
-"""Compose a 1080x1350 quote card: background photo + legibility scrim +
-auto-fit quote text + author + handle.
+"""Compose a 1080x1920 (9:16) quote card: background photo + legibility scrim +
+auto-fit quote text + author + handle. This still frame becomes the visual
+for a Reel — see src/video.py for the zoom + audio composite.
 
 Legibility is the thing that makes or breaks these cards, so contrast is
 measured against the actual pixels behind the text box rather than assumed.
@@ -172,7 +173,7 @@ def render_card(background: Image.Image, quote: str, author: str) -> Image.Image
     handle_bbox = draw.textbbox((0, 0), config.HANDLE, font=handle_font)
     handle_w = handle_bbox[2] - handle_bbox[0]
     draw.text(
-        (center_x - handle_w // 2, config.CARD_HEIGHT - 90),
+        (center_x - handle_w // 2, config.CARD_HEIGHT - config.HANDLE_BOTTOM_MARGIN),
         config.HANDLE, font=handle_font, fill=(255, 255, 255),
     )
 

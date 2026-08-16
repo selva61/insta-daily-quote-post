@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Publish a rendered card to Instagram via the Instagram API with
+"""Publish a rendered Reel to Instagram via the Instagram API with
 Instagram Login (host: graph.instagram.com — no Facebook Page needed).
 
-Two-step flow: create a media container from a public image URL, poll
-until it finishes processing, then publish it.
+Two-step flow: create a media container from a public video URL, poll
+until it finishes processing, then publish it. Video (Reels) processing
+takes noticeably longer than photo processing did.
 
 Usage:
     python src/publish.py --validate
-    python src/publish.py --image-url <public jpg url> --caption-file out/2026-08-16.json
+    python src/publish.py --video-url <public mp4 url> --caption-file out/2026-08-16.json
 """
 
 import argparse
@@ -20,8 +21,8 @@ import requests
 import config
 
 BASE = f"https://graph.instagram.com/{config.IG_API_VERSION}"
-POLL_ATTEMPTS = 20
-POLL_DELAY_SECONDS = 5
+POLL_ATTEMPTS = 40
+POLL_DELAY_SECONDS = 8
 
 
 def _require_credentials():
@@ -54,11 +55,12 @@ def validate():
     return data
 
 
-def create_container(image_url: str, caption: str) -> str:
+def create_container(video_url: str, caption: str) -> str:
     resp = requests.post(
         f"{BASE}/{config.IG_USER_ID}/media",
         data={
-            "image_url": image_url,
+            "media_type": "REELS",
+            "video_url": video_url,
             "caption": caption,
             "access_token": config.IG_ACCESS_TOKEN,
         },
@@ -106,7 +108,7 @@ def publish_container(container_id: str) -> str:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--validate", action="store_true", help="only validate credentials, don't post")
-    parser.add_argument("--image-url", type=str, help="publicly reachable JPEG URL")
+    parser.add_argument("--video-url", type=str, help="publicly reachable MP4 URL")
     parser.add_argument("--caption-file", type=str, help="path to the .json sidecar written by generate.py")
     args = parser.parse_args()
 
@@ -114,8 +116,8 @@ def main():
         validate()
         return
 
-    if not args.image_url or not args.caption_file:
-        sys.exit("--image-url and --caption-file are required to publish")
+    if not args.video_url or not args.caption_file:
+        sys.exit("--video-url and --caption-file are required to publish")
 
     _require_credentials()
 
@@ -123,7 +125,7 @@ def main():
         meta = json.load(f)
     caption = meta["caption"]
 
-    container_id = create_container(args.image_url, caption)
+    container_id = create_container(args.video_url, caption)
     wait_until_ready(container_id)
     publish_container(container_id)
 

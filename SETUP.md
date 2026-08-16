@@ -90,7 +90,7 @@ reviewer. What's left is adding secrets.
 | `IG_USER_ID` | from step 4 | ✅ set (`17841470838558384`) |
 | `IG_ACCESS_TOKEN` | the long-lived token from step 4 | ✅ set |
 | `PEXELS_API_KEY` | from step 5 | ✅ set |
-| `GH_PAT_SECRETS` | a fine-grained PAT, scoped to just this repo, with **Secrets: Read and write** permission — create at github.com/settings/tokens?type=beta. Used only by `refresh-token.yml` to rotate `IG_ACCESS_TOKEN` automatically. | ⬜ still needed |
+| `GH_PAT_SECRETS` | a fine-grained PAT, scoped to just this repo, with **Secrets: Read and write** permission — create at github.com/settings/tokens?type=beta. Used only by `refresh-token.yml` to rotate `IG_ACCESS_TOKEN` automatically. | ✅ set |
 
 **Approval environment**: already created — `instagram-live` exists on this repo with
 you set as the required reviewer.
@@ -99,18 +99,32 @@ This is the gate: every day, the `generate` job builds the card and posts a prev
 the workflow run's job summary; the `publish` job then waits for your approval in that
 same run before it touches Instagram.
 
+Note: posts are Reels now (for background music — Instagram's music library isn't
+API-accessible, only pre-embedded audio in a video is). No new Meta app permissions
+needed for this — `instagram_business_content_publish` (already granted in step 3)
+covers both photo and Reels publishing.
+
 ---
 
 ## 7. Test it
 
 1. Actions tab → **Daily Instagram quote post** → **Run workflow** → check
-   **dry_run** → Run. This generates a real card, commits it, and verifies the public
-   URL is fetchable — but stops short of posting.
-2. Open the run, check the `generate` job's summary for the rendered card + caption.
+   **dry_run** → Run. This generates a real Reel (quote card + zoom + royalty-free
+   music), commits it, and verifies the public URL is fetchable — but stops short of
+   posting.
+2. Open the run, check the `generate` job's summary for the thumbnail + caption + a
+   link to preview the Reel with audio before deciding.
 3. If it looks good, run again **without** dry_run checked, approve when prompted, and
-   confirm the post lands on `@nocturnalnotesselva`.
-4. From here the `30 3 * * *` UTC cron takes over — one card a day, paused for your
+   confirm the Reel lands on `@nocturnalnotesselva`'s Reels tab (Instagram's own
+   processing can lag a little past our own poll completing).
+4. From here the `30 3 * * *` UTC cron takes over — one Reel a day, paused for your
    approval each time.
+
+## Local testing (optional)
+
+`ffmpeg` composites the still card into the Reel — install it once for local testing:
+`brew install ffmpeg`. Not needed for the actual pipeline; GitHub's `ubuntu-latest`
+runners have it preinstalled already.
 
 ## Turning off approval (optional, later)
 

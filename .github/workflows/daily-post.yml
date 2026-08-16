@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Generate and verify the image is publicly fetchable, but do not post to Instagram"
+        description: "Generate and verify the Reel is publicly fetchable, but do not post to Instagram"
         type: boolean
         default: false
 
@@ -23,7 +23,7 @@ jobs:
     outputs:
       date: ${{ steps.meta.outputs.date }}
       sha: ${{ steps.commit.outputs.sha }}
-      image_url: ${{ steps.commit.outputs.image_url }}
+      video_url: ${{ steps.commit.outputs.video_url }}
       dry_run: ${{ steps.meta.outputs.dry_run }}
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +33,9 @@ jobs:
           python-version: "3.13"
 
       - run: pip install -r requirements.txt
+
+      - name: Confirm ffmpeg is available
+        run: ffmpeg -version
 
       - name: Resolve run metadata
         id: meta
@@ -48,33 +51,36 @@ jobs:
         run: python src/publish.py --validate
         working-directory: .
 
-      - name: Generate today's card
+      - name: Generate today's Reel
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python src/generate.py --date "${{ steps.meta.outputs.date }}"
 
-      - name: Commit generated card + state
+      - name: Commit generated Reel + state
         id: commit
         run: |
           git config user.name "instagram-daily-quote-bot"
           git config user.email "actions@users.noreply.github.com"
           git add out/ state/
           if git diff --cached --quiet; then
-            echo "No changes to commit (card for this date already exists)."
+            echo "No changes to commit (Reel for this date already exists)."
           else
-            git commit -m "Daily card: ${{ steps.meta.outputs.date }}"
+            git commit -m "Daily Reel: ${{ steps.meta.outputs.date }}"
             git push
           fi
           sha=$(git rev-parse HEAD)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          echo "image_url=https://raw.githubusercontent.com/${{ github.repository }}/$sha/out/${{ steps.meta.outputs.date }}.jpg" >> "$GITHUB_OUTPUT"
+          echo "video_url=https://raw.githubusercontent.com/${{ github.repository }}/$sha/out/${{ steps.meta.outputs.date }}.mp4" >> "$GITHUB_OUTPUT"
+          echo "thumb_url=https://raw.githubusercontent.com/${{ github.repository }}/$sha/out/${{ steps.meta.outputs.date }}_thumb.jpg" >> "$GITHUB_OUTPUT"
 
       - name: Job summary
         run: |
           {
-            echo "### Today's card — ${{ steps.meta.outputs.date }}"
+            echo "### Today's Reel — ${{ steps.meta.outputs.date }}"
             echo ""
-            echo "![card](${{ steps.commit.outputs.image_url }})"
+            echo "![preview](${{ steps.commit.outputs.thumb_url }})"
+            echo ""
+            echo "[▶ Preview the Reel with audio](${{ steps.commit.outputs.video_url }})"
             echo ""
             echo "**Caption:**"
             echo '```'
@@ -82,6 +88,8 @@ jobs:
             echo '```'
             echo ""
             echo "Photo credit: $(python3 -c "import json; print(json.load(open('out/${{ steps.meta.outputs.date }}.json'))['photo']['photographer'])")"
+            echo ""
+            echo "Track: $(python3 -c "import json; print(json.load(open('out/${{ steps.meta.outputs.date }}.json'))['track']['title'])")"
           } >> "$GITHUB_STEP_SUMMARY"
 
   publish:
@@ -102,13 +110,13 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Verify image is publicly fetchable
+      - name: Verify Reel is publicly fetchable
         run: |
-          status=$(curl -s -o /dev/null -w "%{http_code}" "${{ needs.generate.outputs.image_url }}")
-          content_type=$(curl -sI "${{ needs.generate.outputs.image_url }}" | grep -i '^content-type' || true)
+          status=$(curl -s -o /dev/null -w "%{http_code}" "${{ needs.generate.outputs.video_url }}")
+          content_type=$(curl -sI "${{ needs.generate.outputs.video_url }}" | grep -i '^content-type' || true)
           echo "HTTP $status — $content_type"
           if [ "$status" != "200" ]; then
-            echo "::error::Image URL is not publicly fetchable yet (raw.githubusercontent.com can lag a commit by a few seconds) — re-run this job."
+            echo "::error::Video URL is not publicly fetchable yet (raw.githubusercontent.com can lag a commit by a few seconds) — re-run this job."
             exit 1
           fi
 
@@ -119,9 +127,9 @@ jobs:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
         run: |
           python src/publish.py \
-            --image-url "${{ needs.generate.outputs.image_url }}" \
+            --video-url "${{ needs.generate.outputs.video_url }}" \
             --caption-file "out/${{ needs.generate.outputs.date }}.json"
 
       - name: Dry run — skip publish
         if: needs.generate.outputs.dry_run == 'true'
-        run: echo "dry_run=true — image verified fetchable, Instagram publish skipped."
+        run: echo "dry_run=true — Reel verified fetchable, Instagram publish skipped."
