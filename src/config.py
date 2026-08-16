@@ -45,7 +45,7 @@ META_FONT = FONTS_DIR / "Inter-Variable.ttf"
 META_FONT_AXES = (14, 400)  # (optical size, weight) — regular
 META_FONT_BOLD_AXES = (14, 600)  # semibold
 
-HANDLE = "@nocturnalnotesselva"
+HANDLE = "@nocturnalnotes47"
 
 QUOTE_FONT_MAX_SIZE = 72
 QUOTE_FONT_MIN_SIZE = 34

@@ -37,7 +37,7 @@ the current (verified working, Aug 2026) flow:
    **`instagram_business_content_publish`** — it won't be in the "required" list but is
    the one that actually lets the API post — it'll show "Ready for testing", meaning it
    works immediately on your own tester account with no app review.
-2. **Instagram Tester** — add `nocturnalnotesselva` as a tester, then on the Instagram
+2. **Instagram Tester** — add `nocturnalnotes47` as a tester, then on the Instagram
    app itself: **Settings → Website permissions → Tester invites → Accept**. Skip this
    and every API call fails with a silent permission error.
 3. **Configure webhooks** — skip entirely, leave blank. Webhooks are for *receiving*
@@ -52,7 +52,7 @@ the current (verified working, Aug 2026) flow:
 ## 4. Generate the access token
 
 Once the checklist above is done, go to that page's **"Generate access tokens"** step
-and click **Generate token** next to `nocturnalnotesselva`.
+and click **Generate token** next to `nocturnalnotes47`.
 
 The token this button gives you is **already a long-lived, directly-usable token** —
 verified by calling `graph.instagram.com/me` with it (works immediately) and
@@ -115,7 +115,7 @@ covers both photo and Reels publishing.
 2. Open the run, check the `generate` job's summary for the thumbnail + caption + a
    link to preview the Reel with audio before deciding.
 3. If it looks good, run again **without** dry_run checked, approve when prompted, and
-   confirm the Reel lands on `@nocturnalnotesselva`'s Reels tab (Instagram's own
+   confirm the Reel lands on `@nocturnalnotes47`'s Reels tab (Instagram's own
    processing can lag a little past our own poll completing).
 4. From here the `30 3 * * *` UTC cron takes over — one Reel a day, paused for your
    approval each time.
