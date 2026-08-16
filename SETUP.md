@@ -16,54 +16,54 @@ doesn't change who can see your posts.
 
 ---
 
-## 2. Create a Meta app and add the Instagram product
+## 2. Create a Meta app and add the Instagram use case
+
+The Meta dashboard moved from an "Add Product" model to a "Use cases" model — this is
+the current (verified working, Aug 2026) flow:
 
 1. Go to [developers.facebook.com/apps](https://developers.facebook.com/apps) → **Create App**.
-2. App type: **Other** → **Business** (or "Consumer" if that's not offered — either works
-   for this use case, since you're not submitting for App Review).
-3. Once created, in the left sidebar: **Add Product** → find **Instagram** → **Set Up**.
-4. Choose **API setup with Instagram login** (this is the Facebook-Page-free path).
+2. App type: **Other** → **Business** (or "Consumer" if that's not offered — either works,
+   since you're not submitting for App Review).
+3. On the app dashboard, go to the **Use cases** tab.
+4. Pick **"Manage messaging and content on Instagram"** → **Customize**. (Not obviously
+   named "Instagram," but this is the one that unlocks content-publishing permissions.)
+5. In the left-side menu of that page, click **"API setup with Instagram Login"**.
 
-## 3. Add yourself as an Instagram Tester
+## 3. Work through the setup checklist on that page
 
-Still in the Instagram product setup page:
+1. **Add required permissions** — the page lists `instagram_business_basic`,
+   `instagram_business_manage_comments`, `instagram_business_manage_messages` as
+   required; add those. Then separately find and add
+   **`instagram_business_content_publish`** — it won't be in the "required" list but is
+   the one that actually lets the API post — it'll show "Ready for testing", meaning it
+   works immediately on your own tester account with no app review.
+2. **Instagram Tester** — add `nocturnalnotesselva` as a tester, then on the Instagram
+   app itself: **Settings → Website permissions → Tester invites → Accept**. Skip this
+   and every API call fails with a silent permission error.
+3. **Configure webhooks** — skip entirely, leave blank. Webhooks are for *receiving*
+   events (comments, DMs); this pipeline only publishes.
+4. **Set up Instagram business login** — it asks for a **Redirect URL**. This pipeline
+   never uses a custom OAuth page (see step 4 below), so any real HTTPS URL satisfies
+   the field — your repo URL works fine:
+   `https://github.com/selva61/insta-daily-quote-post`
+5. **Complete app review** — skip. Only required if people *other than you* need to use
+   the app. Posting to your own tester account works indefinitely in development mode.
 
-1. Under **Business login settings**, note the **Instagram App ID** and **App Secret**
-   (Secret is under App Settings → Basic — click "Show").
-2. Under **Instagram Tester**, click **Add Instagram Testers**, enter your
-   `@nocturnalnotesselva` username, and send the invite.
-3. On the Instagram app itself (phone or web): **Settings → Website permissions →
-   Apps and websites → Tester invites**, and **accept** the invite.
+## 4. Generate the access token
 
-Without this step, all API calls return a permission error — the account has to
-explicitly accept being a tester of your app, since the app is in development mode.
+Once the checklist above is done, go to that page's **"Generate access tokens"** step
+and click **Generate token** next to `nocturnalnotesselva`.
 
-## 4. Generate a long-lived access token
+The token this button gives you is **already a long-lived, directly-usable token** —
+verified by calling `graph.instagram.com/me` with it (works immediately) and
+`graph.instagram.com/refresh_access_token` with it (returns a fresh 60-day token right
+away). No OAuth `ig_exchange_token` step, no App Secret needed for this at all — that
+manual exchange is only relevant if you're building your own OAuth authorization flow,
+which the dashboard button does for you.
 
-The Instagram product setup page has a **"Generate access token"** step (step 4 on that
-page) that walks you through authorizing your own account and hands you a token
-directly — use that; it's simpler than the manual OAuth exchange.
-
-1. Click **Generate token**, log in as `@nocturnalnotesselva` when prompted, approve
-   the requested permissions (`instagram_business_basic`,
-   `instagram_business_content_publish`).
-2. Copy the token shown — this is a **short-lived** token (1 hour). Immediately exchange
-   it for a long-lived one (60 days):
-
-   ```bash
-   curl -s "https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=<APP_SECRET>&access_token=<SHORT_LIVED_TOKEN>"
-   ```
-
-   The response's `access_token` is your long-lived token — this is what goes into the
-   `IG_ACCESS_TOKEN` secret.
-
-3. Get your Instagram User ID:
-
-   ```bash
-   curl -s "https://graph.instagram.com/me?fields=user_id,username&access_token=<LONG_LIVED_TOKEN>"
-   ```
-
-   The `user_id` in the response is `IG_USER_ID`.
+The **"Generate access tokens"** section of the page also displays your Instagram
+**User ID** directly next to the account name (a long numeric ID) — that's `IG_USER_ID`,
+no separate API call needed.
 
 Keep both values somewhere private for step 6 — don't commit them anywhere.
 
@@ -85,12 +85,12 @@ reviewer. What's left is adding secrets.
 
 **Repo secrets** (Settings → Secrets and variables → Actions → New repository secret):
 
-| Secret | Value |
-|---|---|
-| `IG_USER_ID` | from step 4 |
-| `IG_ACCESS_TOKEN` | the long-lived token from step 4 |
-| `PEXELS_API_KEY` | from step 5 |
-| `GH_PAT_SECRETS` | a fine-grained PAT, scoped to just this repo, with **Secrets: Read and write** permission — create at github.com/settings/tokens?type=beta. Used only by `refresh-token.yml` to rotate `IG_ACCESS_TOKEN` automatically. |
+| Secret | Value | Status |
+|---|---|---|
+| `IG_USER_ID` | from step 4 | ✅ set (`17841470838558384`) |
+| `IG_ACCESS_TOKEN` | the long-lived token from step 4 | ✅ set |
+| `PEXELS_API_KEY` | from step 5 | ✅ set |
+| `GH_PAT_SECRETS` | a fine-grained PAT, scoped to just this repo, with **Secrets: Read and write** permission — create at github.com/settings/tokens?type=beta. Used only by `refresh-token.yml` to rotate `IG_ACCESS_TOKEN` automatically. | ⬜ still needed |
 
 **Approval environment**: already created — `instagram-live` exists on this repo with
 you set as the required reviewer.
