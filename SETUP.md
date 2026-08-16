@@ -123,8 +123,9 @@ covers both photo and Reels publishing.
 ## Local testing (optional)
 
 `ffmpeg` composites the still card into the Reel — install it once for local testing:
-`brew install ffmpeg`. Not needed for the actual pipeline; GitHub's `ubuntu-latest`
-runners have it preinstalled already.
+`brew install ffmpeg`. The workflow installs it fresh on the runner each time
+(`apt-get install ffmpeg` — verified it's *not* preinstalled on current `ubuntu-latest`
+images, despite that being commonly assumed).
 
 ## Turning off approval (optional, later)
 
