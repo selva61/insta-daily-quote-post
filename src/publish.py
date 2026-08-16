@@ -78,7 +78,7 @@ def wait_until_ready(container_id: str):
         resp = requests.get(
             f"{BASE}/{container_id}",
             params={
-                "fields": "status_code,status,copyright_check_information",
+                "fields": "status_code,status",
                 "access_token": config.IG_ACCESS_TOKEN,
             },
             timeout=20,
