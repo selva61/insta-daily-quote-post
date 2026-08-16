@@ -89,7 +89,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: instagram-live
     steps:
+      # github.sha is frozen for the whole workflow run, so a plain checkout
+      # here would silently miss the commit the generate job just pushed —
+      # pin explicitly to that commit's SHA.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.generate.outputs.sha }}
 
       - uses: actions/setup-python@v5
         with:
