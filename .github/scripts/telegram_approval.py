@@ -36,9 +36,21 @@ def load_caption(path):
         with open(path) as f:
             data = json.load(f)
         caption = data.get("caption", "")
-        return caption[:600] + ("…" if len(caption) > 600 else "")
+        return caption[:500] + ("…" if len(caption) > 500 else "")
     except (OSError, json.JSONDecodeError):
         return ""
+
+
+def video_is_fetchable(url, attempts=6, delay=5):
+    for _ in range(attempts):
+        try:
+            resp = requests.head(url, timeout=10, allow_redirects=True)
+            if resp.status_code == 200:
+                return True
+        except requests.RequestException:
+            pass
+        time.sleep(delay)
+    return False
 
 
 def main():
@@ -58,12 +70,7 @@ def main():
     chat_id = int(chat_id)
 
     caption = load_caption(args.caption_file)
-    text = (
-        f"New Reel ready to publish — {args.date}\n\n"
-        f"{caption}\n\n"
-        f"Preview: {args.video_url}\n\n"
-        f"Approve to publish to Instagram?"
-    )
+    header = f"New Reel ready to publish — {args.date}\n\n{caption}"
     keyboard = {
         "inline_keyboard": [[
             {"text": "✅ Approve", "callback_data": f"approve:{args.run_id}"},
@@ -72,9 +79,23 @@ def main():
     }
 
     offset = latest_update_offset(token)
-    sent = call(token, "sendMessage", chat_id=chat_id, text=text, reply_markup=keyboard)
+
+    has_video = False
+    if video_is_fetchable(args.video_url):
+        try:
+            sent = call(token, "sendVideo", chat_id=chat_id, video=args.video_url,
+                        caption=f"{header}\n\nApprove to publish to Instagram?",
+                        reply_markup=keyboard, supports_streaming=True)
+            has_video = True
+        except (RuntimeError, requests.RequestException) as exc:
+            print(f"sendVideo failed, falling back to text: {exc}", file=sys.stderr)
+
+    if not has_video:
+        text = f"{header}\n\nPreview: {args.video_url}\n\nApprove to publish to Instagram?"
+        sent = call(token, "sendMessage", chat_id=chat_id, text=text, reply_markup=keyboard)
+
     message_id = sent["message_id"]
-    print(f"Sent approval request to Telegram chat {chat_id} (message {message_id}).")
+    print(f"Sent approval request to Telegram chat {chat_id} (message {message_id}, video={has_video}).")
 
     deadline = time.monotonic() + args.timeout_minutes * 60
     while time.monotonic() < deadline:
@@ -104,8 +125,13 @@ def main():
             approved = action == "approve"
             call(token, "answerCallbackQuery", callback_query_id=cq["id"],
                  text="Approved ✅" if approved else "Rejected ❌")
-            call(token, "editMessageText", chat_id=chat_id, message_id=message_id,
-                 text=f"{text}\n\n{'✅ Approved' if approved else '❌ Rejected'} by {responder}")
+            status_line = f"{'✅ Approved' if approved else '❌ Rejected'} by {responder}"
+            if has_video:
+                call(token, "editMessageCaption", chat_id=chat_id, message_id=message_id,
+                     caption=f"{header}\n\n{status_line}")
+            else:
+                call(token, "editMessageText", chat_id=chat_id, message_id=message_id,
+                     text=f"{text}\n\n{status_line}")
 
             summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
             if summary_path:
@@ -114,8 +140,12 @@ def main():
 
             sys.exit(0 if approved else 1)
 
-    call(token, "editMessageText", chat_id=chat_id, message_id=message_id,
-         text=f"{text}\n\n⏱️ Timed out waiting for a response.")
+    if has_video:
+        call(token, "editMessageCaption", chat_id=chat_id, message_id=message_id,
+             caption=f"{header}\n\n⏱️ Timed out waiting for a response.")
+    else:
+        call(token, "editMessageText", chat_id=chat_id, message_id=message_id,
+             text=f"{text}\n\n⏱️ Timed out waiting for a response.")
     print("::error::Timed out waiting for Telegram approval.", file=sys.stderr)
     sys.exit(1)
 
