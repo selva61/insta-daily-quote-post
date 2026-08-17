@@ -95,8 +95,36 @@ jobs:
             echo "Track: $(python3 -c "import json; print(json.load(open('out/${{ steps.meta.outputs.date }}.json'))['track']['title'])")"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  publish:
+  approve:
     needs: generate
+    if: needs.generate.outputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.generate.outputs.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - run: pip install requests
+
+      - name: Wait for Telegram approval
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python .github/scripts/telegram_approval.py \
+            --run-id "${{ github.run_id }}" \
+            --date "${{ needs.generate.outputs.date }}" \
+            --caption-file "out/${{ needs.generate.outputs.date }}.json" \
+            --video-url "${{ needs.generate.outputs.video_url }}" \
+            --timeout-minutes 30
+
+  publish:
+    needs: [generate, approve]
+    if: always() && needs.generate.result == 'success' && (needs.approve.result == 'success' || needs.approve.result == 'skipped')
     runs-on: ubuntu-latest
     environment: instagram-live
     steps:
