@@ -122,7 +122,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          python .github/scripts/telegram_approval.py \
+          python -u .github/scripts/telegram_approval.py \
             --run-id "${{ github.run_id }}" \
             --date "${{ needs.generate.outputs.date }}" \
             --caption-file "out/${{ needs.generate.outputs.date }}.json" \

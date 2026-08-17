@@ -24,6 +24,20 @@ def call(token, method, **params):
     return body["result"]
 
 
+def ack(token, offset):
+    """Confirm processed updates so Telegram clears them from the queue.
+
+    Without this, an update matched inside the poll loop is only cleared
+    from Telegram's backlog by a *later* getUpdates(offset=...) call — and
+    if the script exits right after matching, that call never happens, so
+    the same button tap lingers (and can reappear duplicated) indefinitely.
+    """
+    try:
+        call(token, "getUpdates", offset=offset, timeout=0)
+    except requests.RequestException:
+        pass
+
+
 def latest_update_offset(token):
     result = call(token, "getUpdates", limit=1, offset=-1)
     if not result:
@@ -141,8 +155,10 @@ def main():
                 with open(summary_path, "a") as f:
                     f.write(f"\nTelegram approval: **{'approved' if approved else 'rejected'}** by {responder}\n")
 
+            ack(token, offset)
             sys.exit(0 if approved else 1)
 
+    ack(token, offset)
     if has_video:
         call(token, "editMessageCaption", chat_id=chat_id, message_id=message_id,
              caption=f"{header}\n\n⏱️ Timed out waiting for a response.")
