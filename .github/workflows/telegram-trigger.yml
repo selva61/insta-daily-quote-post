@@ -1,0 +1,49 @@
+name: Telegram trigger listener
+
+# Polls Telegram every 5 minutes (GitHub's minimum cron granularity — actual
+# delay can run longer under load) for a /post command and, if found, starts
+# daily-post.yml via the Actions API. Send "/post" for a live run or
+# "/post dry" for a dry run.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: telegram-trigger-listener
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - run: pip install requests
+
+      - name: Poll Telegram and dispatch on /post
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/scripts/telegram_trigger.py
+
+      - name: Commit updated offset
+        run: |
+          git config user.name "instagram-daily-quote-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state/telegram_offset.json
+          if git diff --cached --quiet; then
+            echo "No offset change."
+          else
+            git commit -m "Advance Telegram update offset"
+            git push
+          fi
