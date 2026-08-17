@@ -133,12 +133,21 @@ def _wrap_and_fit(draw, text, font_path, max_size, min_size, box_w, box_h):
     return font, lines, total_h, line_gap
 
 
+def _paste_logo(image: Image.Image) -> None:
+    logo = Image.open(config.LOGO_PATH).convert("RGBA")
+    aspect = logo.height / logo.width
+    logo = logo.resize((config.LOGO_WIDTH, round(config.LOGO_WIDTH * aspect)), Image.LANCZOS)
+    x = (config.CARD_WIDTH - logo.width) // 2
+    image.paste(logo, (x, config.LOGO_TOP_MARGIN), logo)
+
+
 def render_card(background: Image.Image, quote: str, author: str) -> Image.Image:
     box = config.TEXT_BOX
     box_w = box["right"] - box["left"]
     box_h = box["bottom"] - box["top"]
 
     image = _apply_scrim(background, box)
+    _paste_logo(image)
     draw = ImageDraw.Draw(image)
 
     quote_font, lines, quote_h, line_gap = _wrap_and_fit(

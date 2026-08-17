@@ -9,6 +9,7 @@ STATE_DIR = ROOT / "state"
 OUT_DIR = ROOT / "out"
 FONTS_DIR = ROOT / "assets" / "fonts"
 AUDIO_DIR = ROOT / "assets" / "audio"
+BRANDING_DIR = ROOT / "assets" / "branding"
 
 QUOTES_FILE = DATA_DIR / "quotes.json"
 USED_QUOTES_FILE = STATE_DIR / "used_quotes.json"
@@ -46,6 +47,12 @@ META_FONT_AXES = (14, 400)  # (optical size, weight) — regular
 META_FONT_BOLD_AXES = (14, 600)  # semibold
 
 HANDLE = "@nocturnalnotes47"
+
+# Logo watermark, pasted top-center — see render.py. Background-flattened to
+# transparent (source file has a solid white background baked in).
+LOGO_PATH = BRANDING_DIR / "NN_logo.png"
+LOGO_WIDTH = 340
+LOGO_TOP_MARGIN = 60
 
 QUOTE_FONT_MAX_SIZE = 72
 QUOTE_FONT_MIN_SIZE = 34
