@@ -151,13 +151,18 @@ jobs:
 
       - name: Verify Reel is publicly fetchable
         run: |
-          status=$(curl -s -o /dev/null -w "%{http_code}" "${{ needs.generate.outputs.video_url }}")
-          content_type=$(curl -sI "${{ needs.generate.outputs.video_url }}" | grep -i '^content-type' || true)
-          echo "HTTP $status — $content_type"
-          if [ "$status" != "200" ]; then
-            echo "::error::Video URL is not publicly fetchable yet (raw.githubusercontent.com can lag a commit by a few seconds) — re-run this job."
-            exit 1
-          fi
+          for i in 1 2 3 4 5; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "${{ needs.generate.outputs.video_url }}")
+            if [ "$status" == "200" ]; then
+              content_type=$(curl -sI "${{ needs.generate.outputs.video_url }}" | grep -i '^content-type' || true)
+              echo "HTTP $status — $content_type"
+              exit 0
+            fi
+            echo "HTTP $status on attempt $i/5 — retrying..."
+            sleep $((i * 5))
+          done
+          echo "::error::Video URL is not publicly fetchable after retries (propagation lag or CDN rate limit) — re-run this job."
+          exit 1
 
       - name: Publish to Instagram
         if: needs.generate.outputs.dry_run != 'true'
