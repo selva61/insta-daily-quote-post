@@ -52,7 +52,7 @@ HANDLE = "@nocturnalnotes47"
 # transparent (source file has a solid white background baked in).
 LOGO_PATH = BRANDING_DIR / "NN_logo.png"
 LOGO_WIDTH = 340
-LOGO_TOP_MARGIN = 60
+LOGO_TOP_MARGIN = 240
 
 QUOTE_FONT_MAX_SIZE = 72
 QUOTE_FONT_MIN_SIZE = 34
