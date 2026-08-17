@@ -59,6 +59,7 @@ def main():
     parser.add_argument("--date", required=True)
     parser.add_argument("--caption-file", required=True)
     parser.add_argument("--video-url", required=True)
+    parser.add_argument("--dry-run", default="false")
     parser.add_argument("--timeout-minutes", type=int, default=30)
     args = parser.parse_args()
 
@@ -70,7 +71,9 @@ def main():
     chat_id = int(chat_id)
 
     caption = load_caption(args.caption_file)
-    header = f"New Reel ready to publish — {args.date}\n\n{caption}"
+    dry_run = args.dry_run.lower() == "true"
+    title = "New Reel ready (DRY RUN — will not post to Instagram)" if dry_run else "New Reel ready to publish"
+    header = f"{title} — {args.date}\n\n{caption}"
     keyboard = {
         "inline_keyboard": [[
             {"text": "✅ Approve", "callback_data": f"approve:{args.run_id}"},

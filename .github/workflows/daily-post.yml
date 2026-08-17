@@ -97,7 +97,6 @@ jobs:
 
   approve:
     needs: generate
-    if: needs.generate.outputs.dry_run != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -120,6 +119,7 @@ jobs:
             --date "${{ needs.generate.outputs.date }}" \
             --caption-file "out/${{ needs.generate.outputs.date }}.json" \
             --video-url "${{ needs.generate.outputs.video_url }}" \
+            --dry-run "${{ needs.generate.outputs.dry_run }}" \
             --timeout-minutes 30
 
   publish:
