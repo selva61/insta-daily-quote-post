@@ -2,11 +2,10 @@ name: Refresh Instagram access token
 
 # Instagram long-lived tokens expire 60 days after last refresh, and can
 # only be refreshed while still valid — miss the window and you have to
-# redo the full OAuth flow by hand. Running twice a month leaves wide
-# margin against any single missed/failed run.
+# redo the full OAuth flow by hand.
+#
+# Scheduled trigger disabled; run manually via workflow_dispatch.
 on:
-  schedule:
-    - cron: "0 4 1,15 * *"
   workflow_dispatch:
 
 jobs:
